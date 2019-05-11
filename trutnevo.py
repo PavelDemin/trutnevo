@@ -2,7 +2,7 @@ import telebot
 from telebot import types
 import logging
 
-token = '799646588:AAFiCOLFzOaTITLhekOBgUs1TMm8pVIRU9A'
+token = ''
 chatId = 228534214
 
 
