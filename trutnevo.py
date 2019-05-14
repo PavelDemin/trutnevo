@@ -1,6 +1,7 @@
 import telebot
 from telebot import types
 import logging
+import sys, os, time
 
 token = ''
 chatId = 228534214
@@ -11,19 +12,9 @@ window1 = True #окно 1 закрыто
 window2 = True #окно 2 закрыто
 alarmStatus = False #статус сигнализации, True - активна, False - неактивна
 
-i = {
-	'alarmStatus': [False, ""],
-	'door': [True, "Дверь открыта"],
-	}
-
-
 logger = telebot.logger
-telebot.logger.setLevel(logging.DEBUG) # Outputs debug messages to console.
+#	telebot.logger.setLevel(logging.DEBUG) # Outputs debug messages to console.
 bot = telebot.TeleBot(token)
-
-#u = bot.get_me()
-#print(u)
-
 
 # Функции обработки прерываний
 def alarm(channel):
@@ -53,6 +44,37 @@ def info():
 		i.append('Окно в зале открыто\n')
 	return i
 
+def set_alarm():
+	if (door and window1 and window2):
+		alarmStatus = True
+		return True
+	else:
+		return False	
+
+def unset_alarm():
+	alarmStatus = False
+	return True
+
+
+def generate_menu(alarmStatus=None):
+	mainmenu = types.ReplyKeyboardMarkup(resize_keyboard = True, row_width=1)
+	itembtn1 = types.KeyboardButton('Состояние дома')
+	if(alarmStatus):
+		itembtn2 = types.KeyboardButton('Снять с сигнализации')
+	else:
+		itembtn2 = types.KeyboardButton('Поставить на сигнализацию')
+	itembtn3 = types.KeyboardButton('Включить отопление')
+	mainmenu.add(itembtn1, itembtn2, itembtn3)
+	return mainmenu
+
+def logger(e):
+	try:
+		f = open(os.path.abspath("error.log"),"a")
+		f.write(e)
+		f.close()
+	except Exception as e:
+		print(e)	
+
 
 @bot.message_handler(commands=['start', 'help'])
 def send_menu(message):
@@ -71,31 +93,32 @@ def send_message(message):
 		print(message.chat.id)
 	
 	if(message.text == 'Поставить на сигнализацию'):
-		if (door and window1 and window2):
-			alarmStatus = True
+		if (set_alarm()):
 			bot.send_message(message.chat.id, 'Сигнализация активна!', reply_markup=generate_menu(alarmStatus))
 		else:
 			bot.send_message(message.chat.id, 'Невозможно поставить на сигнализацию\n', reply_markup=generate_menu(alarmStatus))	
 	
 	if(message.text == 'Снять с сигнализации'):
-		alarmStatus = False
-		bot.send_message(message.chat.id, 'Сигнализация не активна!', reply_markup=generate_menu(alarmStatus))		
+		if unset_alarm():
+			bot.send_message(message.chat.id, 'Сигнализация не активна!', reply_markup=generate_menu(alarmStatus))		
 	
 	if(message.text == 'Включить отопление'):
 		window1 = False
 		alarm(1)
-		bot.send_message(message.chat.id, 'Отопление включено!', reply_markup=generate_menu())						
+		bot.send_message(message.chat.id, 'Отопление включено!', reply_markup=generate_menu())	
 
-def generate_menu(alarmStatus=None):
-	mainmenu = types.ReplyKeyboardMarkup(resize_keyboard = True, row_width=1)
-	itembtn1 = types.KeyboardButton('Состояние дома')
-	if(alarmStatus):
-		itembtn2 = types.KeyboardButton('Снять с сигнализации')
-	else:
-		itembtn2 = types.KeyboardButton('Поставить на сигнализацию')
-	itembtn3 = types.KeyboardButton('Включить отопление')
-	mainmenu.add(itembtn1, itembtn2, itembtn3)
-	return mainmenu
+def main():
+	while True:
+		try:
+			bot.polling(none_stop=True)
+		except Exception as s:
+			logger(time.strftime("%d.%m.%Y %H:%M:%S")+" Нет интернет соединения!\n")
+			time.sleep(10)
+		
 
-
-bot.polling()
+if __name__ == "__main__":
+	try:
+		main()
+	except KeyboardInterrupt:
+		print('Exit programm')
+		sys.exit(0)
