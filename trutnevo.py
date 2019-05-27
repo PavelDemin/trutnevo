@@ -1,17 +1,20 @@
 import telebot
 from telebot import types
+from telebot import apihelper
 # import logging
 import sys
 import os
 import time
 import requests
+import gdown
 
 
-from telebot import apihelper
+# proxy = 'https://KgaTRs:8h7HqG@138.59.206.204:9491'
+server = 'https://api.telegram.org'
+proxy_list = 'https://drive.google.com/uc?id=1YIU9CyG6PJhojiam13znjC5migGxVEJj'
+proxy_list_file = 'proxylist.txt'
+log_file = "error.log"
 
-proxy = 'https://KgaTRs:8h7HqG@138.59.206.204:9491'
-
-apihelper.proxy = {'https': 'https://KgaTRs:8h7HqG@138.59.206.204:9491'}
 
 # token = '799646588:AAG6_o_kkcVMIOzLBwCAMj_52YuCK2QOirY'
 chatId = 228534214
@@ -22,11 +25,17 @@ window1 = True  # окно 1 закрыто
 window2 = True  # окно 2 закрыто
 alarmStatus = False  # статус сигнализации, True - активна, False - неактивна
 
-logger = telebot.logger
-# telebot.logger.setLevel(logging.DEBUG) # Outputs debug messages to console.
-bot = telebot.TeleBot(token)
 
 # Функции обработки прерываний
+
+
+def load_proxy_list():
+    try:
+        f = open(os.path.abspath(proxy_list_file), "r")
+        return f.read()
+    except Exception:
+        log_error(time.strftime("%d.%m.%Y %H:%M:%S") +
+                  " Невозможно прочитать файл proxylist.txt!\n")
 
 
 def alarm(channel):
@@ -85,27 +94,40 @@ def generate_menu(alarmStatus=None):
     return mainmenu
 
 
-def logger(e):
+def log_error(e):
     try:
-        f = open(os.path.abspath("error.log"), "a")
+        f = open(os.path.abspath(log_file), "a")
         f.write(e)
         f.close()
     except Exception as e:
         print(e)
 
 
-def check_inet(proxy):
-    proxies = {'https': proxy}
+def check_inet():
+    proxies = {'https': load_proxy_list()}
     try:
-        r = requests.get('https://api.telegram.org', proxies=proxies)
+        r = requests.get(server, timeout=5, proxies=proxies)
         r.raise_for_status()
     except Exception as err:
         print(('Other error occurred:{err}').format(err=err))
-    else:
-        print('Success!')
+        log_error(time.strftime("%d.%m.%Y %H:%M:%S") +
+                  " Нет интернет соединения!\n")
+        output = 'proxylist.txt'
+        try:
+            gdown.download(proxy_list, output, quiet=False)
+            log_error(time.strftime("%d.%m.%Y %H:%M:%S") +
+                      " Список прокси обновлен!\n")
+        except Exception:
+            log_error(time.strftime("%d.%m.%Y %H:%M:%S") +
+                      " Невозможно скачать список прокси с облака!\n")
 
-r = check_inet(proxy)
-print(r)
+
+# r = check_inet(proxy)
+# print(r)
+
+logger = telebot.logger
+# telebot.logger.setLevel(logging.DEBUG) # Outputs debug messages to console.
+bot = telebot.TeleBot(token)
 
 
 @bot.message_handler(commands=['start', 'help'])
@@ -151,12 +173,12 @@ def send_message(message):
 def main():
     while True:
         try:
-           # bot.polling(none_stop=True)
-           time.sleep(1)
+            apihelper.proxy = {'https': load_proxy_list()}
+            bot.polling(none_stop=True)
+            time.sleep(1)
         except Exception:
-            logger(time.strftime("%d.%m.%Y %H:%M:%S") +
-                   " Нет интернет соединения!\n")
-            time.sleep(10)
+            check_inet()
+            time.sleep(5)
 
 
 if __name__ == "__main__":
